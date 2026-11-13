@@ -2,272 +2,448 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ARMS FIGHT</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#071426;color:white;font-family:Arial;text-align:center}
-header{background:#102b50;padding:20px}
-h1{margin:0;color:#55aaff;letter-spacing:4px;font-size:32px}
-main{max-width:850px;margin:auto;padding:15px}
-.panel{background:#102440;padding:15px;border-radius:14px;margin:12px 0}
-.hud{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.info{width:42%;text-align:left}
-.info:last-child{text-align:right}
-.bar{height:16px;background:#394b60;border-radius:20px;overflow:hidden}
-.fill{height:100%;width:100%;transition:width .15s}
-.blue{background:#278aff}
-.red{background:#ff4b55}
-#timer{font-size:25px;font-weight:bold}
-canvas{width:100%;height:auto;background:#193657;border:3px solid #4389cc;border-radius:12px}
-#message{min-height:28px;color:#9bcaff;font-weight:bold;margin:12px}
-button{padding:14px;border:0;border-radius:10px;color:white;background:#1679e8;font-size:15px;font-weight:bold;margin:4px;cursor:pointer;touch-action:manipulation}
-button:active{transform:scale(.96)}
-#start,#restart{background:#168c60}
-#block{background:#7058c9}
-#dodge{background:#c77b22}
-.controls{display:flex;justify-content:center;flex-wrap:wrap}
-small{color:#a9bdd4;line-height:2}
+body{margin:0;background:#071426;color:white;font-family:Arial,sans-serif;text-align:center}
+h1{margin:15px 0 5px;color:#48a9ff;letter-spacing:3px}
+#game{width:min(96vw,850px);margin:12px auto;background:#102a49;border:3px solid #3289d4;border-radius:12px;overflow:hidden}
+canvas{display:block;width:100%;height:auto;background:#183b60}
+#hud{display:flex;justify-content:space-around;align-items:center;padding:12px;gap:10px}
+.fighter{width:40%;text-align:center}
+.name{font-weight:bold;margin-bottom:6px}
+.health{height:17px;background:#333;border:2px solid white;border-radius:10px;overflow:hidden}
+.fill{height:100%;width:100%;background:#36d477;transition:width .15s}
+#enemyFill{background:#ff4b54}
+#middle{font-weight:bold;min-width:100px}
+#round,#timer{font-size:20px;color:#ffd45c}
+#scores{padding:5px;font-size:18px;color:#d8eaff}
+#message{min-height:35px;font-size:20px;font-weight:bold;color:#ffd45c;padding:5px}
+#controls{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;padding:12px}
+button{background:#1676c5;color:white;border:0;border-radius:9px;padding:13px 17px;font-size:15px;font-weight:bold;cursor:pointer;touch-action:none}
+button:active{background:#0b4c83;transform:scale(.96)}
+#start{background:#16a765;font-size:18px;margin:5px}
+.small{font-size:13px;color:#b8cce2;padding:8px}
+@media(max-width:500px){button{padding:13px 12px;font-size:13px}#middle{min-width:75px}#round,#timer{font-size:17px}}
 </style>
 </head>
 <body>
-<header>
+
 <h1>ARMS FIGHT</h1>
-<p>ENTER THE RING. FIGHT FOR THE TITLE.</p>
-</header>
-<main>
-<div class="panel hud">
-<div class="info"><b>YOU 🔵</b><div class="bar"><div id="ph" class="fill blue"></div></div></div>
+<div class="small">THE ULTIMATE BOXING CHALLENGE</div>
+
+<div id="game">
+<div id="hud">
+<div class="fighter">
+<div class="name">BLUE PLAYER</div>
+<div class="health"><div class="fill" id="playerFill"></div></div>
+</div>
+<div id="middle">
+<div id="round">ROUND 1</div>
 <div id="timer">60</div>
-<div class="info"><b>CPU 🔴</b><div class="bar"><div id="eh" class="fill red"></div></div></div>
+</div>
+<div class="fighter">
+<div class="name">RED CPU</div>
+<div class="health"><div class="fill" id="enemyFill"></div></div>
+</div>
 </div>
 
-<canvas id="game" width="800" height="420"></canvas>
-<div id="message">Press START to fight!</div>
-
-<div class="panel">
+<div id="scores">YOU: 0 ROUNDS &nbsp; | &nbsp; CPU: 0 ROUNDS</div>
+<canvas id="canvas" width="850" height="430"></canvas>
+<div id="message">Press START FIGHT to begin!</div>
 <button id="start">START FIGHT</button>
-<div class="controls">
-<button id="left">⬅ LEFT</button>
-<button id="right">RIGHT ➡</button>
-<button id="punch">👊 PUNCH</button>
-<button id="block">🛡 BLOCK</button>
-<button id="dodge">💨 DODGE</button>
+<div class="small">PC: A/D = MOVE · SPACE = PUNCH · B = BLOCK · SHIFT = DODGE · R = RESTART</div>
+<div id="controls">
+<button data-action="left">◀ LEFT</button>
+<button data-action="right">RIGHT ▶</button>
+<button data-action="punch">👊 PUNCH</button>
+<button data-action="block">🛡 BLOCK</button>
+<button data-action="dodge">DODGE</button>
 </div>
-<button id="restart">RESTART</button>
 </div>
-
-<small>
-PC: A / D = Move | SPACE = Punch | B = Block | SHIFT = Dodge | R = Restart
-<br>Phone: Use the buttons above.
-</small>
-</main>
 
 <script>
-const canvas=document.getElementById("game");
-const c=canvas.getContext("2d");
-const ph=document.getElementById("ph");
-const eh=document.getElementById("eh");
-const timer=document.getElementById("timer");
-const msg=document.getElementById("message");
+const canvas=document.getElementById("canvas");
+const ctx=canvas.getContext("2d");
+const playerFill=document.getElementById("playerFill");
+const enemyFill=document.getElementById("enemyFill");
+const roundText=document.getElementById("round");
+const timerText=document.getElementById("timer");
+const scoresText=document.getElementById("scores");
+const message=document.getElementById("message");
+const startButton=document.getElementById("start");
 
-let p,e,seconds,running,ended,last,pc,ec,pa,ea,pat,eat;
+const W=850,H=430;
+let player,enemy;
+let round=1,playerWins=0,enemyWins=0;
+let time=60,playing=false,roundOver=false,matchOver=false;
+let lastTime=0,roundPause=0;
 let keys={};
+let effects=[];
+let roundMessage="";
+let playerAction="",enemyAction="";
+let playerCooldown=0,enemyCooldown=0;
+let playerDodge=0,enemyDodge=0;
+let playerBlock=false,enemyBlock=false;
+let playerMove=0;
 
-function reset(){
-p={x:260,hp:100};
-e={x:540,hp:100};
-seconds=60;running=false;ended=false;
-pc=0;ec=0;pa="";ea="";pat=0;eat=0;
-keys={};
-update();draw();
-msg.textContent="Press START to fight!";
+function makeFighter(x,color){
+return {x,y:310,hp:100,color,attack:0,hit:false,stun:0};
 }
 
-function update(){
-ph.style.width=Math.max(0,p.hp)+"%";
-eh.style.width=Math.max(0,e.hp)+"%";
-timer.textContent=Math.ceil(seconds);
+function resetFighters(){
+player=makeFighter(245,"#249cff");
+enemy=makeFighter(605,"#f04455");
+playerCooldown=0;enemyCooldown=0;
+playerDodge=0;enemyDodge=0;
+playerBlock=false;enemyBlock=false;
+playerAction="";enemyAction="";
+playerMove=0;
 }
 
-function drawFighter(x,y,color,action,face){
-c.save();
-c.translate(x,y);c.scale(face,1);
-c.strokeStyle=color;c.lineWidth=17;c.lineCap="round";
-c.beginPath();
-c.moveTo(-10,38);c.lineTo(-23,75);
-c.moveTo(10,38);c.lineTo(22,75);c.stroke();
+function startGame(){
+round=1;playerWins=0;enemyWins=0;
+matchOver=false;roundOver=false;
+effects=[];
+beginRound();
+}
 
-c.fillStyle=color;c.fillRect(-24,-8,48,52);
-c.fillStyle="#e5b58b";
-c.beginPath();c.arc(0,-34,23,0,Math.PI*2);c.fill();
-c.fillStyle="#25232b";
-c.beginPath();c.arc(0,-42,23,Math.PI,Math.PI*2);c.fill();
-c.fillStyle="#111";c.beginPath();c.arc(8,-35,2.5,0,Math.PI*2);c.fill();
+function beginRound(){
+resetFighters();
+time=60;
+playing=true;
+roundOver=false;
+roundPause=0;
+roundText.textContent="ROUND "+round;
+timerText.textContent="60";
+message.textContent="FIGHT!";
+updateHUD();
+}
 
-c.strokeStyle="#e5b58b";c.lineWidth=13;
-c.beginPath();
-if(action==="punch"){
-c.moveTo(17,2);c.lineTo(52,-9);
-c.moveTo(-17,2);c.lineTo(-28,20);
-}else if(action==="block"){
-c.moveTo(17,2);c.lineTo(22,-22);
-c.moveTo(-17,2);c.lineTo(-22,-22);
+function updateHUD(){
+playerFill.style.width=Math.max(0,player.hp)+"%";
+enemyFill.style.width=Math.max(0,enemy.hp)+"%";
+scoresText.textContent="YOU: "+playerWins+" ROUNDS | CPU: "+enemyWins+" ROUNDS";
+}
+
+function addEffect(x,y,text,color){
+effects.push({x,y,text,color,life:35});
+}
+
+function punch(attacker,target,isPlayer){
+if(!playing || attacker.stun>0)return;
+if(isPlayer){
+if(playerCooldown>0)return;
+playerCooldown=32;
+playerAction="punch";
 }else{
-c.moveTo(17,2);c.lineTo(37,16);
-c.moveTo(-17,2);c.lineTo(-37,16);
+if(enemyCooldown>0)return;
+enemyCooldown=42;
+enemyAction="punch";
 }
-c.stroke();
-c.fillStyle="#fff";
-if(action==="punch"){
-c.beginPath();c.arc(55,-9,13,0,Math.PI*2);c.fill();
-}else if(action==="block"){
-c.beginPath();c.arc(22,-25,13,0,Math.PI*2);
-c.arc(-22,-25,13,0,Math.PI*2);c.fill();
+attacker.attack=13;
+attacker.hit=false;
+
+const distance=Math.abs(attacker.x-target.x);
+if(distance<125){
+if(target===player && playerDodge>0){
+addEffect(target.x,245,"MISS!","#ffd45c");
+}else if(target===enemy && enemyDodge>0){
+addEffect(target.x,245,"MISS!","#ffd45c");
 }else{
-c.beginPath();c.arc(40,17,13,0,Math.PI*2);
-c.arc(-40,17,13,0,Math.PI*2);c.fill();
+let damage=10;
+const blocked=target===player?playerBlock:enemyBlock;
+if(blocked)damage=3;
+target.hp=Math.max(0,target.hp-damage);
+target.stun=blocked?3:9;
+addEffect(target.x,245,blocked?"BLOCK!":"-"+damage,blocked?"#75d9ff":"#ffdc55");
+updateHUD();
 }
-c.restore();
+}else{
+addEffect(attacker.x,245,"MISS!","#ffffff");
+}
+}
+
+function finishRound(reason){
+if(roundOver || matchOver)return;
+playing=false;
+roundOver=true;
+if(player.hp>enemy.hp)playerWins++;
+else if(enemy.hp>player.hp)enemyWins++;
+else{
+// A tied round does not award a point.
+}
+updateHUD();
+
+if(player.hp<=0){
+enemyWins++;
+roundMessage="KNOCKOUT! CPU WINS ROUND "+round;
+}else if(enemy.hp<=0){
+playerWins++;
+roundMessage="KNOCKOUT! YOU WIN ROUND "+round;
+}else if(player.hp>enemy.hp){
+roundMessage="YOU WIN ROUND "+round+"!";
+}else if(enemy.hp>player.hp){
+roundMessage="CPU WINS ROUND "+round;
+}else{
+roundMessage="ROUND DRAW!";
+}
+// Knockout points are already awarded by the health comparison above.
+if(player.hp<=0 || enemy.hp<=0){
+if(player.hp<=0 && playerWins>enemyWins)playerWins--;
+if(enemy.hp<=0 && enemyWins>playerWins)enemyWins--;
+if(player.hp<=0)enemyWins++;
+if(enemy.hp<=0)playerWins++;
+}
+updateHUD();
+message.textContent=roundMessage;
+roundPause=2.5;
+}
+
+function finishMatch(){
+playing=false;matchOver=true;
+if(playerWins>enemyWins)message.textContent="🏆 YOU WIN THE MATCH! "+playerWins+" - "+enemyWins;
+else if(enemyWins>playerWins)message.textContent="CPU WINS THE MATCH! "+enemyWins+" - "+playerWins;
+else message.textContent="MATCH DRAW! "+playerWins+" - "+enemyWins;
+startButton.textContent="PLAY AGAIN";
+}
+
+function nextRound(){
+if(round<3){
+round++;
+beginRound();
+}else{
+finishMatch();
+}
+}
+
+function doDodge(isPlayer){
+if(!playing)return;
+if(isPlayer){
+if(playerDodge<=0 && playerCooldown<=0){
+playerDodge=22;
+player.x=Math.max(65,Math.min(785,player.x+(player.x<enemy.x?-65:65)));
+addEffect(player.x,245,"DODGE!","#75d9ff");
+}
+}else{
+if(enemyDodge<=0){
+enemyDodge=22;
+enemy.x=Math.max(65,Math.min(785,enemy.x+(enemy.x<player.x?-55:55)));
+}
+}
+}
+
+function update(dt){
+if(!playing)return;
+time-=dt;
+if(time<=0){
+time=0;
+finishRound("TIME!");
+}
+timerText.textContent=Math.ceil(time);
+
+playerCooldown=Math.max(0,playerCooldown-dt*60);
+enemyCooldown=Math.max(0,enemyCooldown-dt*60);
+playerDodge=Math.max(0,playerDodge-dt*60);
+enemyDodge=Math.max(0,enemyDodge-dt*60);
+player.stun=Math.max(0,player.stun-dt*60);
+enemy.stun=Math.max(0,enemy.stun-dt*60);
+player.attack=Math.max(0,player.attack-dt*60);
+enemy.attack=Math.max(0,enemy.attack-dt*60);
+
+playerBlock=!!keys["b"];
+playerMove=0;
+if(keys["a"]||keys["arrowleft"])playerMove=-1;
+if(keys["d"]||keys["arrowright"])playerMove=1;
+if(player.stun<=0 && playerDodge<=0){
+player.x+=playerMove*230*dt;
+}
+player.x=Math.max(65,Math.min(785,player.x));
+
+// CPU follows the player and chooses simple actions.
+const distance=Math.abs(enemy.x-player.x);
+if(enemy.stun<=0 && enemyDodge<=0){
+if(distance>100){
+enemy.x+=(enemy.x>player.x?-1:1)*125*dt;
+}
+if(distance<120 && enemyCooldown<=0 && Math.random()<0.035){
+if(Math.random()<0.25)doDodge(false);
+else punch(enemy,player,false);
+}
+}
+enemy.x=Math.max(65,Math.min(785,enemy.x));
+enemyBlock=enemyCooldown>15 && Math.random()<0.04;
+
+for(let i=effects.length-1;i>=0;i--){
+effects[i].life-=dt*60;
+effects[i].y-=dt*24;
+if(effects[i].life<=0)effects.splice(i,1);
+}
+}
+
+function drawFighter(f,flip,blocking,dodging){
+ctx.save();
+ctx.translate(f.x,f.y);
+if(flip)ctx.scale(-1,1);
+
+// Shadow
+ctx.fillStyle="rgba(0,0,0,.3)";
+ctx.beginPath();ctx.ellipse(0,7,43,9,0,0,Math.PI*2);ctx.fill();
+
+// Legs
+ctx.fillStyle="#202a3a";
+ctx.fillRect(-22,-45,16,45);
+ctx.fillRect(8,-45,16,45);
+ctx.fillStyle="#eeeeee";
+ctx.fillRect(-27,-5,25,9);
+ctx.fillRect(5,-5,25,9);
+
+// Body
+ctx.fillStyle=f.color;
+ctx.fillRect(-30,-115,60,72);
+
+// Head
+ctx.fillStyle="#d99a72";
+ctx.beginPath();ctx.arc(0,-137,27,0,Math.PI*2);ctx.fill();
+
+// Hair
+ctx.fillStyle="#20202b";
+ctx.beginPath();ctx.arc(0,-148,25,Math.PI,Math.PI*2);ctx.fill();
+
+// Eyes
+ctx.fillStyle="#111";
+ctx.fillRect(8,-140,4,4);
+
+// Gloves
+ctx.fillStyle=f.color;
+ctx.strokeStyle="#ffffff";
+ctx.lineWidth=3;
+if(f.attack>0){
+ctx.beginPath();ctx.arc(45,-95,17,0,Math.PI*2);ctx.fill();ctx.stroke();
+ctx.fillStyle="#ffffff";ctx.fillRect(35,-99,20,5);
+}else{
+ctx.beginPath();ctx.arc(-33,-105,16,0,Math.PI*2);ctx.fill();ctx.stroke();
+ctx.beginPath();ctx.arc(34,-105,16,0,Math.PI*2);ctx.fill();ctx.stroke();
+}
+if(blocking){
+ctx.strokeStyle="#ffd45c";
+ctx.lineWidth=5;
+ctx.beginPath();ctx.arc(0,-120,45,Math.PI,Math.PI*2);ctx.stroke();
+}
+if(dodging){
+ctx.fillStyle="rgba(255,255,255,.25)";
+ctx.fillRect(-45,-155,90,155);
+}
+ctx.restore();
 }
 
 function draw(){
-c.clearRect(0,0,800,420);
-c.fillStyle="#193657";c.fillRect(0,0,800,420);
-c.fillStyle="#d7e6f5";c.font="bold 22px Arial";
-c.fillText("ARMS FIGHT ARENA",280,35);
-for(let i=0;i<3;i++){
-c.strokeStyle=["#f2f5fa","#e34d58","#f2f5fa"][i];
-c.lineWidth=5;c.beginPath();
-c.moveTo(30,220+i*45);c.lineTo(770,220+i*45);c.stroke();
+ctx.clearRect(0,0,W,H);
+// Background
+const sky=ctx.createLinearGradient(0,0,0,H);
+sky.addColorStop(0,"#24547e");
+sky.addColorStop(1,"#10253e");
+ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+
+// Arena lights
+ctx.fillStyle="#f8dc8b";
+for(let i=0;i<7;i++){
+ctx.beginPath();ctx.arc(65+i*120,35,5,0,Math.PI*2);ctx.fill();
 }
-c.fillStyle="#314c6b";c.fillRect(0,355,800,65);
-drawFighter(p.x,285,"#218cff",pa,1);
-drawFighter(e.x,285,"#ed4654",ea,-1);
+// Crowd
+ctx.fillStyle="#29496b";
+for(let i=0;i<40;i++){
+ctx.beginPath();ctx.arc(i*23,190+(i%3)*9,8,0,Math.PI*2);ctx.fill();
 }
 
-function finish(text){
-running=false;ended=true;
-msg.textContent=text;draw();
+// Ring
+ctx.fillStyle="#d9e6f2";
+ctx.fillRect(0,300,W,10);
+ctx.fillStyle="#ffffff";
+ctx.fillRect(0,325,W,5);
+ctx.fillRect(0,365,W,5);
+ctx.fillRect(0,405,W,5);
+ctx.fillStyle="#23628f";
+ctx.fillRect(0,310,W,120);
+
+// Ring floor
+ctx.fillStyle="#315f85";
+ctx.fillRect(0,310,W,120);
+ctx.strokeStyle="rgba(255,255,255,.16)";
+ctx.lineWidth=2;
+ctx.beginPath();ctx.moveTo(425,310);ctx.lineTo(425,430);ctx.stroke();
+
+if(player && enemy){
+drawFighter(player,false,playerBlock,playerDodge>0);
+drawFighter(enemy,true,enemyBlock,enemyDodge>0);
+}
+effects.forEach(e=>{
+ctx.globalAlpha=Math.min(1,e.life/15);
+ctx.fillStyle=e.color;
+ctx.font="bold 22px Arial";
+ctx.textAlign="center";
+ctx.fillText(e.text,e.x,e.y);
+ctx.globalAlpha=1;
+});
 }
 
-function action(type){
-if(!running||ended||pc>0)return;
-pa=type;pat=.35;
-if(type==="punch"){
-pc=.5;
-if(Math.abs(p.x-e.x)<220){
-if(ea==="block"){e.hp-=3;msg.textContent="CPU BLOCKED!";}
-else if(ea==="dodge"){msg.textContent="CPU DODGED!";}
-else{e.hp-=10;msg.textContent="NICE PUNCH!";}
-}else msg.textContent="MOVE CLOSER!";
-}
-if(type==="block"){
-pc=.25;msg.textContent="GUARD UP!";
-}
-if(type==="dodge"){
-pc=.6;
-p.x=Math.max(100,Math.min(700,p.x-55));
-msg.textContent="NICE DODGE!";
-}
-update();draw();
-}
-
-function enemyAttack(){
-if(ec>0)return;
-let distance=Math.abs(e.x-p.x);
-let r=Math.random();
-if(r<.3){
-ea="block";eat=.5;ec=.9;
-}else if(r<.5){
-ea="dodge";eat=.3;ec=1;
-e.x=Math.min(680,e.x+35);
-}else if(distance<220){
-ea="punch";eat=.3;ec=1;
-if(pa==="block"){
-p.hp-=2;msg.textContent="YOU BLOCKED!";
-}else if(pa==="dodge"){
-msg.textContent="YOU DODGED!";
-}else{
-p.hp-=8;msg.textContent="CPU PUNCHED!";
-}
-}else{
-e.x-=20;ec=.4;
-}
-}
-
+let last=performance.now();
 function loop(now){
-if(!running)return;
-let dt=Math.min((now-last)/1000,.05);
+const dt=Math.min((now-last)/1000,0.04);
 last=now;
-seconds-=dt;
-pc=Math.max(0,pc-dt);ec=Math.max(0,ec-dt);
-pat=Math.max(0,pat-dt);eat=Math.max(0,eat-dt);
-
-if(pat===0)pa="";
-if(eat===0)ea="";
-
-// PC movement
-if(keys.a)p.x-=230*dt;
-if(keys.d)p.x+=230*dt;
-p.x=Math.max(90,Math.min(710,p.x));
-
-if(ec===0)enemyAttack();
-
-update();draw();
-
-if(e.hp<=0){finish("🏆 YOU WIN! CHAMPION!");return;}
-if(p.hp<=0){finish("CPU WINS! TRY AGAIN!");return;}
-if(seconds<=0){
-seconds=0;update();
-if(p.hp>e.hp)finish("🏆 YOU WIN ON POINTS!");
-else if(e.hp>p.hp)finish("CPU WINS ON POINTS!");
-else finish("TIME UP! DRAW!");
-return;
+update(dt);
+draw();
+if(roundOver && !matchOver){
+roundPause-=dt;
+if(roundPause<=0){
+if(round===3)finishMatch();
+else nextRound();
+}
 }
 requestAnimationFrame(loop);
 }
 
-function start(){
-if(running)return;
-if(ended)reset();
-running=true;last=performance.now();
-msg.textContent="FIGHT!";
-requestAnimationFrame(loop);
+function action(name,down){
+if(name==="left")keys["arrowleft"]=down;
+if(name==="right")keys["arrowright"]=down;
+if(name==="block")keys["b"]=down;
+if(name==="punch" && down)punch(player,enemy,true);
+if(name==="dodge" && down)doDodge(true);
 }
 
-document.getElementById("start").onclick=start;
-document.getElementById("restart").onclick=reset;
-document.getElementById("punch").onclick=()=>action("punch");
-document.getElementById("block").onclick=()=>action("block");
-document.getElementById("dodge").onclick=()=>action("dodge");
-
-document.getElementById("left").onpointerdown=()=>{
-if(running)p.x=Math.max(90,p.x-35);
-draw();
-};
-document.getElementById("right").onpointerdown=()=>{
-if(running)p.x=Math.min(710,p.x+35);
-draw();
-};
-
-document.addEventListener("keydown",ev=>{
-let k=ev.key.toLowerCase();
-if(k===" "){ev.preventDefault();if(!ev.repeat)action("punch");}
-if(k==="a"||k==="d")keys[k]=true;
-if(!ev.repeat&&k==="b")action("block");
-if(!ev.repeat&&k==="shift")action("dodge");
-if(!ev.repeat&&k==="r")reset();
+document.querySelectorAll("[data-action]").forEach(btn=>{
+const name=btn.dataset.action;
+btn.addEventListener("pointerdown",e=>{
+e.preventDefault();action(name,true);
+});
+["pointerup","pointerleave","pointercancel"].forEach(evt=>{
+btn.addEventListener(evt,e=>{e.preventDefault();action(name,false);});
+});
 });
 
-document.addEventListener("keyup",ev=>{
-let k=ev.key.toLowerCase();
-if(k==="a"||k==="d")keys[k]=false;
+document.addEventListener("keydown",e=>{
+const k=e.key.toLowerCase();
+keys[k]=true;
+if(k===" "){
+e.preventDefault();
+if(!e.repeat)punch(player,enemy,true);
+}
+if(k==="shift" && !e.repeat)doDodge(true);
+if(k==="r")startGame();
+});
+document.addEventListener("keyup",e=>{
+keys[e.key.toLowerCase()]=false;
 });
 
-window.addEventListener("blur",()=>keys={});
+startButton.addEventListener("click",()=>{
+startButton.textContent="RESTART MATCH";
+startGame();
+});
 
-reset();
+resetFighters();
+updateHUD();
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>
