@@ -1,65 +1,273 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#081329">
 <title>ARMS FIGHT</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#081329;color:white;font-family:Arial,sans-serif}
-header{display:flex;justify-content:space-between;align-items:center;padding:22px 7%;background:#10213e;border-bottom:1px solid #345078}
-.logo{font-size:27px;font-weight:900;letter-spacing:2px}
-.logo span{color:#68aaff}
-nav a{color:white;text-decoration:none;margin-left:20px;font-weight:bold}
-.hero{text-align:center;padding:90px 15px 100px;background:radial-gradient(ellipse at center,#244b7b,#081329 72%)}
-.tag{color:#9bc9ff;letter-spacing:4px;font-size:12px}
-.hero h1{font-size:clamp(38px,8vw,75px);margin:20px 0}
-.hero p{color:#c4d5eb;font-size:17px}
-.button{display:inline-block;margin-top:25px;padding:15px 30px;background:#68aaff;color:#081329;text-decoration:none;font-weight:bold;border-radius:9px}
-.button:hover{background:#a5d0ff}
-section{max-width:850px;margin:60px auto;padding:0 20px;text-align:center}
-section h2{font-size:30px}
-section p{color:#b9cbe3;line-height:1.8}
-.panel{padding:35px;background:#10213e;border:1px solid #345078;border-radius:16px}
-footer{text-align:center;padding:25px;border-top:1px solid #263b59;color:#91a8c9;font-size:13px}
-@media(max-width:500px){header{padding:18px 4%}.logo{font-size:21px}nav a{margin-left:10px;font-size:12px}.hero{padding:65px 12px}}
+body{margin:0;background:#071426;color:white;font-family:Arial;text-align:center}
+header{background:#102b50;padding:20px}
+h1{margin:0;color:#55aaff;letter-spacing:4px;font-size:32px}
+main{max-width:850px;margin:auto;padding:15px}
+.panel{background:#102440;padding:15px;border-radius:14px;margin:12px 0}
+.hud{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.info{width:42%;text-align:left}
+.info:last-child{text-align:right}
+.bar{height:16px;background:#394b60;border-radius:20px;overflow:hidden}
+.fill{height:100%;width:100%;transition:width .15s}
+.blue{background:#278aff}
+.red{background:#ff4b55}
+#timer{font-size:25px;font-weight:bold}
+canvas{width:100%;height:auto;background:#193657;border:3px solid #4389cc;border-radius:12px}
+#message{min-height:28px;color:#9bcaff;font-weight:bold;margin:12px}
+button{padding:14px;border:0;border-radius:10px;color:white;background:#1679e8;font-size:15px;font-weight:bold;margin:4px;cursor:pointer;touch-action:manipulation}
+button:active{transform:scale(.96)}
+#start,#restart{background:#168c60}
+#block{background:#7058c9}
+#dodge{background:#c77b22}
+.controls{display:flex;justify-content:center;flex-wrap:wrap}
+small{color:#a9bdd4;line-height:2}
 </style>
 </head>
 <body>
-
 <header>
-<div class="logo">ARMS <span>FIGHT</span></div>
-<nav>
-<a href="#home">HOME</a>
-<a href="#about">ABOUT</a>
-</nav>
+<h1>ARMS FIGHT</h1>
+<p>ENTER THE RING. FIGHT FOR THE TITLE.</p>
 </header>
-
-<div class="hero" id="home">
-<div class="tag">WELCOME TO THE ARENA</div>
-<h1>FIGHT FOR THE TITLE.</h1>
-<p>Enter the ring. Show your skills. Become champion.</p>
-<a class="button" href="#game">COMING SOON</a>
+<main>
+<div class="panel hud">
+<div class="info"><b>YOU 🔵</b><div class="bar"><div id="ph" class="fill blue"></div></div></div>
+<div id="timer">60</div>
+<div class="info"><b>CPU 🔴</b><div class="bar"><div id="eh" class="fill red"></div></div></div>
 </div>
 
-<section id="about">
+<canvas id="game" width="800" height="420"></canvas>
+<div id="message">Press START to fight!</div>
+
 <div class="panel">
-<h2>WELCOME TO ARMS FIGHT</h2>
-<p>A new cartoon-style 2D boxing game is coming soon.</p>
-<p>Challenge opponents, improve your skills and fight for the championship.</p>
+<button id="start">START FIGHT</button>
+<div class="controls">
+<button id="left">⬅ LEFT</button>
+<button id="right">RIGHT ➡</button>
+<button id="punch">👊 PUNCH</button>
+<button id="block">🛡 BLOCK</button>
+<button id="dodge">💨 DODGE</button>
 </div>
-</section>
+<button id="restart">RESTART</button>
+</div>
 
-<section id="game">
-<h2>THE BOXING ARENA</h2>
-<p>Our game is currently being built. Get ready to enter the ring!</p>
-</section>
+<small>
+PC: A / D = Move | SPACE = Punch | B = Block | SHIFT = Dodge | R = Restart
+<br>Phone: Use the buttons above.
+</small>
+</main>
 
-<footer>
-ARMS FIGHT © 2026 · MADE FOR FUN
-</footer>
+<script>
+const canvas=document.getElementById("game");
+const c=canvas.getContext("2d");
+const ph=document.getElementById("ph");
+const eh=document.getElementById("eh");
+const timer=document.getElementById("timer");
+const msg=document.getElementById("message");
 
+let p,e,seconds,running,ended,last,pc,ec,pa,ea,pat,eat;
+let keys={};
+
+function reset(){
+p={x:260,hp:100};
+e={x:540,hp:100};
+seconds=60;running=false;ended=false;
+pc=0;ec=0;pa="";ea="";pat=0;eat=0;
+keys={};
+update();draw();
+msg.textContent="Press START to fight!";
+}
+
+function update(){
+ph.style.width=Math.max(0,p.hp)+"%";
+eh.style.width=Math.max(0,e.hp)+"%";
+timer.textContent=Math.ceil(seconds);
+}
+
+function drawFighter(x,y,color,action,face){
+c.save();
+c.translate(x,y);c.scale(face,1);
+c.strokeStyle=color;c.lineWidth=17;c.lineCap="round";
+c.beginPath();
+c.moveTo(-10,38);c.lineTo(-23,75);
+c.moveTo(10,38);c.lineTo(22,75);c.stroke();
+
+c.fillStyle=color;c.fillRect(-24,-8,48,52);
+c.fillStyle="#e5b58b";
+c.beginPath();c.arc(0,-34,23,0,Math.PI*2);c.fill();
+c.fillStyle="#25232b";
+c.beginPath();c.arc(0,-42,23,Math.PI,Math.PI*2);c.fill();
+c.fillStyle="#111";c.beginPath();c.arc(8,-35,2.5,0,Math.PI*2);c.fill();
+
+c.strokeStyle="#e5b58b";c.lineWidth=13;
+c.beginPath();
+if(action==="punch"){
+c.moveTo(17,2);c.lineTo(52,-9);
+c.moveTo(-17,2);c.lineTo(-28,20);
+}else if(action==="block"){
+c.moveTo(17,2);c.lineTo(22,-22);
+c.moveTo(-17,2);c.lineTo(-22,-22);
+}else{
+c.moveTo(17,2);c.lineTo(37,16);
+c.moveTo(-17,2);c.lineTo(-37,16);
+}
+c.stroke();
+c.fillStyle="#fff";
+if(action==="punch"){
+c.beginPath();c.arc(55,-9,13,0,Math.PI*2);c.fill();
+}else if(action==="block"){
+c.beginPath();c.arc(22,-25,13,0,Math.PI*2);
+c.arc(-22,-25,13,0,Math.PI*2);c.fill();
+}else{
+c.beginPath();c.arc(40,17,13,0,Math.PI*2);
+c.arc(-40,17,13,0,Math.PI*2);c.fill();
+}
+c.restore();
+}
+
+function draw(){
+c.clearRect(0,0,800,420);
+c.fillStyle="#193657";c.fillRect(0,0,800,420);
+c.fillStyle="#d7e6f5";c.font="bold 22px Arial";
+c.fillText("ARMS FIGHT ARENA",280,35);
+for(let i=0;i<3;i++){
+c.strokeStyle=["#f2f5fa","#e34d58","#f2f5fa"][i];
+c.lineWidth=5;c.beginPath();
+c.moveTo(30,220+i*45);c.lineTo(770,220+i*45);c.stroke();
+}
+c.fillStyle="#314c6b";c.fillRect(0,355,800,65);
+drawFighter(p.x,285,"#218cff",pa,1);
+drawFighter(e.x,285,"#ed4654",ea,-1);
+}
+
+function finish(text){
+running=false;ended=true;
+msg.textContent=text;draw();
+}
+
+function action(type){
+if(!running||ended||pc>0)return;
+pa=type;pat=.35;
+if(type==="punch"){
+pc=.5;
+if(Math.abs(p.x-e.x)<220){
+if(ea==="block"){e.hp-=3;msg.textContent="CPU BLOCKED!";}
+else if(ea==="dodge"){msg.textContent="CPU DODGED!";}
+else{e.hp-=10;msg.textContent="NICE PUNCH!";}
+}else msg.textContent="MOVE CLOSER!";
+}
+if(type==="block"){
+pc=.25;msg.textContent="GUARD UP!";
+}
+if(type==="dodge"){
+pc=.6;
+p.x=Math.max(100,Math.min(700,p.x-55));
+msg.textContent="NICE DODGE!";
+}
+update();draw();
+}
+
+function enemyAttack(){
+if(ec>0)return;
+let distance=Math.abs(e.x-p.x);
+let r=Math.random();
+if(r<.3){
+ea="block";eat=.5;ec=.9;
+}else if(r<.5){
+ea="dodge";eat=.3;ec=1;
+e.x=Math.min(680,e.x+35);
+}else if(distance<220){
+ea="punch";eat=.3;ec=1;
+if(pa==="block"){
+p.hp-=2;msg.textContent="YOU BLOCKED!";
+}else if(pa==="dodge"){
+msg.textContent="YOU DODGED!";
+}else{
+p.hp-=8;msg.textContent="CPU PUNCHED!";
+}
+}else{
+e.x-=20;ec=.4;
+}
+}
+
+function loop(now){
+if(!running)return;
+let dt=Math.min((now-last)/1000,.05);
+last=now;
+seconds-=dt;
+pc=Math.max(0,pc-dt);ec=Math.max(0,ec-dt);
+pat=Math.max(0,pat-dt);eat=Math.max(0,eat-dt);
+
+if(pat===0)pa="";
+if(eat===0)ea="";
+
+// PC movement
+if(keys.a)p.x-=230*dt;
+if(keys.d)p.x+=230*dt;
+p.x=Math.max(90,Math.min(710,p.x));
+
+if(ec===0)enemyAttack();
+
+update();draw();
+
+if(e.hp<=0){finish("🏆 YOU WIN! CHAMPION!");return;}
+if(p.hp<=0){finish("CPU WINS! TRY AGAIN!");return;}
+if(seconds<=0){
+seconds=0;update();
+if(p.hp>e.hp)finish("🏆 YOU WIN ON POINTS!");
+else if(e.hp>p.hp)finish("CPU WINS ON POINTS!");
+else finish("TIME UP! DRAW!");
+return;
+}
+requestAnimationFrame(loop);
+}
+
+function start(){
+if(running)return;
+if(ended)reset();
+running=true;last=performance.now();
+msg.textContent="FIGHT!";
+requestAnimationFrame(loop);
+}
+
+document.getElementById("start").onclick=start;
+document.getElementById("restart").onclick=reset;
+document.getElementById("punch").onclick=()=>action("punch");
+document.getElementById("block").onclick=()=>action("block");
+document.getElementById("dodge").onclick=()=>action("dodge");
+
+document.getElementById("left").onpointerdown=()=>{
+if(running)p.x=Math.max(90,p.x-35);
+draw();
+};
+document.getElementById("right").onpointerdown=()=>{
+if(running)p.x=Math.min(710,p.x+35);
+draw();
+};
+
+document.addEventListener("keydown",ev=>{
+let k=ev.key.toLowerCase();
+if(k===" "){ev.preventDefault();if(!ev.repeat)action("punch");}
+if(k==="a"||k==="d")keys[k]=true;
+if(!ev.repeat&&k==="b")action("block");
+if(!ev.repeat&&k==="shift")action("dodge");
+if(!ev.repeat&&k==="r")reset();
+});
+
+document.addEventListener("keyup",ev=>{
+let k=ev.key.toLowerCase();
+if(k==="a"||k==="d")keys[k]=false;
+});
+
+window.addEventListener("blur",()=>keys={});
+
+reset();
+</script>
 </body>
 </html>
